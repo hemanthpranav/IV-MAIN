@@ -48,22 +48,8 @@
       margin-bottom: 8px;
       font-size: 1em;
     }
-    .tooltip {
-      position: absolute;
-      background: white;
-      padding: 5px 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      pointer-events: none;
+    #bar-chart svg text {
       font-size: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .heatmap-cell {
-      stroke: #fff;
-      stroke-width: 1px;
-    }
-    .heatmap-cell:hover {
-      stroke-width: 2px;
     }
   </style>
 </head>
@@ -83,9 +69,6 @@
       <h3>Origin</h3>
       <select id="origin-filter">
         <option value="all">All Origins</option>
-        <option value="American">American</option>
-        <option value="European">European</option>
-        <option value="Japanese">Japanese</option>
       </select>
     </div>
     
@@ -116,28 +99,10 @@
     <h2>Horsepower vs MPG</h2>
   </div>
   
-
-  
-  <!-- New Heatmap Visualization -->
-  <div class="chart-container" id="heatmap-container">
-    <h2>MPG Heatmap: Cylinders vs. Model Year</h2>
-    <div id="heatmap"></div>
+  <div class="chart-container" id="line-chart">
+    <h2>Weight Trend Over Years</h2>
   </div>
 
   <script src="visualizations.js"></script>
-  <script>
-    // Load data and create visualizations
-    d3.csv("a1-cars.csv").then(function(data) {
-      // Convert numeric fields
-      data.forEach(d => {
-        d.MPG = +d.MPG;
-        d.Cylinders = +d.Cylinders;
-        d.Model_Year = +d.Model_Year;
-      });
-      
-      // Create heatmap
-      createHeatmap(data);
-    });
-  </script>
 </body>
 </html>
