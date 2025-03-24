@@ -23,16 +23,16 @@ function loadData() {
       });
 
       console.log("Data loaded successfully");
-      
+
       // Initialize filters
       initFilters();
-      
+
       // Apply initial filters
       applyFilters();
     })
     .catch(function(error) {
       console.error("Error loading data:", error);
-      document.getElementById("bar-chart").innerHTML = 
+      document.getElementById("bar-chart").innerHTML =
         '<p style="color:red">Error loading data. Check console.</p>';
     });
 }
@@ -40,10 +40,10 @@ function loadData() {
 // Initialize filter dropdowns
 function initFilters() {
   // Manufacturer filter
-  var manufacturers = Array.from(new Set(rawData.map(function(d) { 
-    return d.Manufacturer; 
+  var manufacturers = Array.from(new Set(rawData.map(function(d) {
+    return d.Manufacturer;
   }))).sort();
-  
+
   var manufacturerSelect = d3.select("#manufacturer-filter");
   manufacturers.forEach(function(mfg) {
     manufacturerSelect.append("option")
@@ -52,10 +52,10 @@ function initFilters() {
   });
 
   // Origin filter
-  var origins = Array.from(new Set(rawData.map(function(d) { 
-    return d.Origin; 
+  var origins = Array.from(new Set(rawData.map(function(d) {
+    return d.Origin;
   }))).sort();
-  
+
   var originSelect = d3.select("#origin-filter");
   origins.forEach(function(origin) {
     originSelect.append("option")
@@ -64,10 +64,12 @@ function initFilters() {
   });
 
   // Year filter
-  var years = Array.from(new Set(rawData.map(function(d) { 
-    return d.Model_Year; 
-  }))).sort(function(a, b) { return a - b; });
-  
+  var years = Array.from(new Set(rawData.map(function(d) {
+    return d.Model_Year;
+  }))).sort(function(a, b) {
+    return a - b;
+  });
+
   var yearSelect = d3.select("#year-filter");
   years.forEach(function(year) {
     yearSelect.append("option")
@@ -94,7 +96,7 @@ function applyFilters() {
   });
 
   console.log("Filtered data points:", filteredData.length);
-  
+
   // Update visualizations
   updateVisualizations();
 }
@@ -103,7 +105,7 @@ function applyFilters() {
 function updateVisualizations() {
   createBarChart(filteredData);
   createScatterPlot(filteredData);
-  createLineChart(filteredData);
+  createBubbleChart(filteredData);
 }
 
 // Bar Chart: MPG by Manufacturer
@@ -116,7 +118,6 @@ function createBarChart(data) {
     return;
   }
 
-  // Increased bottom margin for rotated labels
   var margin = {top: 40, right: 30, bottom: 100, left: 60};
   var width = 800 - margin.left - margin.right;
   var height = 400 - margin.top - margin.bottom;
@@ -127,12 +128,10 @@ function createBarChart(data) {
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by Manufacturer
-  var manufacturers = Array.from(new Set(data.map(function(d) { 
-    return d.Manufacturer; 
+  var manufacturers = Array.from(new Set(data.map(function(d) {
+    return d.Manufacturer;
   }))).sort();
 
-  // Calculate average MPG
   var avgMPG = manufacturers.map(function(mfg) {
     var mfgData = data.filter(function(d) { return d.Manufacturer === mfg; });
     return {
@@ -141,19 +140,16 @@ function createBarChart(data) {
     };
   });
 
-  // X scale
   var x = d3.scaleBand()
     .domain(manufacturers)
     .range([0, width])
     .padding(0.2);
 
-  // Y scale
   var y = d3.scaleLinear()
     .domain([0, d3.max(avgMPG, function(d) { return d.MPG; })])
     .nice()
     .range([height, 0]);
 
-  // Add bars
   svg.selectAll(".bar")
     .data(avgMPG)
     .enter().append("rect")
@@ -164,7 +160,6 @@ function createBarChart(data) {
     .attr("height", function(d) { return height - y(d.MPG); })
     .attr("fill", "steelblue");
 
-  // Add X axis with rotated labels
   svg.append("g")
     .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x))
@@ -174,11 +169,9 @@ function createBarChart(data) {
     .attr("dy", "0.15em")
     .attr("transform", "rotate(-45)");
 
-  // Add Y axis
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add Y axis label
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -margin.left + 20)
@@ -207,7 +200,6 @@ function createScatterPlot(data) {
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Scales
   var x = d3.scaleLinear()
     .domain(d3.extent(data, function(d) { return d.Horsepower; }))
     .range([0, width]);
@@ -216,7 +208,6 @@ function createScatterPlot(data) {
     .domain(d3.extent(data, function(d) { return d.MPG; }))
     .range([height, 0]);
 
-  // Add dots
   svg.selectAll(".dot")
     .data(data)
     .enter().append("circle")
@@ -226,7 +217,6 @@ function createScatterPlot(data) {
     .attr("r", 5)
     .attr("fill", "steelblue");
 
-  // Add axes
   svg.append("g")
     .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x));
@@ -234,7 +224,6 @@ function createScatterPlot(data) {
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add labels
   svg.append("text")
     .attr("x", width / 2)
     .attr("y", height + margin.bottom - 10)
@@ -249,9 +238,9 @@ function createScatterPlot(data) {
     .text("MPG");
 }
 
-// Line Chart: Weight vs Year
-function createLineChart(data) {
-  var container = d3.select("#line-chart");
+// Bubble Chart: Horsepower vs MPG with Weight as Bubble Size
+function createBubbleChart(data) {
+  var container = d3.select("#bubble-chart");
   container.selectAll("*").remove();
 
   if (data.length === 0) {
@@ -260,7 +249,7 @@ function createLineChart(data) {
   }
 
   var margin = {top: 40, right: 30, bottom: 70, left: 60};
-  var width = 800 - margin.left - margin.right;
+  var width = 600 - margin.left - margin.right;
   var height = 500 - margin.top - margin.bottom;
 
   var svg = container.append("svg")
@@ -269,43 +258,28 @@ function createLineChart(data) {
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by year
-  var groupedData = d3.rollups(
-    data,
-    function(v) { return d3.mean(v, function(d) { return d.Weight; }); },
-    function(d) { return d['Model Year']; }
-  ).filter(function(d) {
-    return !isNaN(d[0]) && !isNaN(d[1]);
-  });
-
-  // Sort by year
-  groupedData.sort(function(a, b) {
-    return a[0] - b[0];
-  });
-
-  // Scales
   var x = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d[0]; }))
+    .domain(d3.extent(data, function(d) { return d.Horsepower; }))
     .range([0, width]);
 
   var y = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d[1]; }))
+    .domain(d3.extent(data, function(d) { return d.MPG; }))
     .range([height, 0]);
 
-  // Line generator
-  var line = d3.line()
-    .x(function(d) { return x(d[0]); })
-    .y(function(d) { return y(d[1]); });
+  var radiusScale = d3.scaleSqrt()
+    .domain(d3.extent(data, function(d) { return d.Weight; }))
+    .range([3, 20]);
 
-  // Add line
-  svg.append("path")
-    .datum(groupedData)
-    .attr("fill", "none")
-    .attr("stroke", "steelblue")
-    .attr("stroke-width", 2)
-    .attr("d", line);
+  svg.selectAll(".bubble")
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "bubble")
+    .attr("cx", function(d) { return x(d.Horsepower); })
+    .attr("cy", function(d) { return y(d.MPG); })
+    .attr("r", function(d) { return radiusScale(d.Weight); })
+    .attr("fill", "lightcoral")
+    .attr("opacity", 0.7);
 
-  // Add axes
   svg.append("g")
     .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x));
@@ -313,21 +287,19 @@ function createLineChart(data) {
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add labels
   svg.append("text")
     .attr("x", width / 2)
     .attr("y", height + margin.bottom - 10)
     .style("text-anchor", "middle")
-    .text("Model Year");
+    .text("Horsepower");
 
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -margin.left + 20)
     .attr("x", -height / 2)
     .style("text-anchor", "middle")
-    .text("Average Weight");
+    .text("MPG");
 }
 
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', loadData);
-   
+// Load data initially
+loadData();
