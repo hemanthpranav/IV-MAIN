@@ -4,7 +4,7 @@ var filteredData = [];
 
 // Main data loader
 function loadData() {
-  d3.csv("https://raw.githubusercontent.com/hemanthpranav/IV-MAIN/main/a1-cars.csv")
+  d3.csv("https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/a1-cars.csv")
     .then(function(data) {
       // Process data
       rawData = data.map(function(d) {
@@ -249,103 +249,74 @@ function createScatterPlot(data) {
     .text("MPG");
 }
 
-function createHeatmap(data) {
-  // Remove any existing heatmap
-  d3.select("#heatmap").selectAll("*").remove();
+// Line Chart: Weight vs Year
+function createLineChart(data) {
+  var container = d3.select("#line-chart");
+  container.selectAll("*").remove();
 
-  // Set dimensions and margins
-  const margin = {top: 50, right: 30, bottom: 80, left: 60};
-  const width = 800 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
+  if (data.length === 0) {
+    container.append("p").text("No data matching filters");
+    return;
+  }
 
-  // Create SVG
-  const svg = d3.select("#heatmap")
-    .append("svg")
+  var margin = {top: 40, right: 30, bottom: 70, left: 60};
+  var width = 800 - margin.left - margin.right;
+  var height = 500 - margin.top - margin.bottom;
+
+  var svg = container.append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Extract unique years and cylinders
-  const years = Array.from(new Set(data.map(d => d.Model_Year))).sort(d3.ascending);
-  const cylinders = [4, 6, 8];
-
-  // Color scale
-  const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
-    .domain([0, d3.max(data, d => d.MPG)]);
-
-  // Create scales
-  const x = d3.scaleBand()
-    .domain(years)
-    .range([0, width])
-    .padding(0.05);
-
-  const y = d3.scaleBand()
-    .domain(cylinders)
-    .range([height, 0])
-    .padding(0.05);
-
-  // Group data by year and cylinders
-  const groupedData = d3.rollups(
+  // Group data by year
+  var groupedData = d3.rollups(
     data,
-    v => d3.mean(v, d => d.MPG),
-    d => d.Model_Year,
-    d => d.Cylinders
-  );
+    function(v) { return d3.mean(v, function(d) { return d.Weight; }); },
+    function(d) { return d.Model_Year; }
+  ).filter(function(d) {
+    return !isNaN(d[0]) && !isNaN(d[1]);
+  });
 
-  // Create heatmap cells
-  svg.selectAll()
-    .data(groupedData)
-    .enter()
-    .selectAll()
-    .data(d => d[1].map(e => ({
-      year: d[0],
-      cylinders: e[0],
-      value: e[1],
-      count: e[1].length
-    })))
-    .enter()
-    .append("rect")
-    .attr("class", "heatmap-cell")
-    .attr("x", d => x(d.year))
-    .attr("y", d => y(d.cylinders))
-    .attr("width", x.bandwidth())
-    .attr("height", y.bandwidth())
-    .attr("fill", d => isNaN(d.value) ? "#eee" : colorScale(d.value))
-    .on("mouseover", function(event, d) {
-      d3.select(this).attr("stroke", "#333");
-      
-      // Show tooltip
-      const tooltip = d3.select("body").append("div")
-        .attr("class", "tooltip")
-        .html(`
-          Year: ${d.year}<br>
-          Cylinders: ${d.cylinders}<br>
-          Avg MPG: ${d.value ? d.value.toFixed(1) : 'N/A'}
-        `)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 15) + "px");
-    })
-    .on("mouseout", function() {
-      d3.select(this).attr("stroke", "#fff");
-      d3.selectAll(".tooltip").remove();
-    });
+  // Sort by year
+  groupedData.sort(function(a, b) {
+    return a[0] - b[0];
+  });
+
+  // Scales
+  var x = d3.scaleLinear()
+    .domain(d3.extent(groupedData, function(d) { return d[0]; }))
+    .range([0, width]);
+
+  var y = d3.scaleLinear()
+    .domain(d3.extent(groupedData, function(d) { return d[1]; }))
+    .range([height, 0]);
+
+  // Line generator
+  var line = d3.line()
+    .x(function(d) { return x(d[0]); })
+    .y(function(d) { return y(d[1]); });
+
+  // Add line
+  svg.append("path")
+    .datum(groupedData)
+    .attr("fill", "none")
+    .attr("stroke", "steelblue")
+    .attr("stroke-width", 2)
+    .attr("d", line);
 
   // Add axes
   svg.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x))
-    .selectAll("text")
-    .attr("transform", "rotate(-45)")
-    .style("text-anchor", "end");
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x));
 
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add axis labels
+  // Add labels
   svg.append("text")
     .attr("x", width / 2)
-    .attr("y", height + margin.bottom - 50)
+    .attr("y", height + margin.bottom - 10)
     .style("text-anchor", "middle")
     .text("Model Year");
 
@@ -354,46 +325,9 @@ function createHeatmap(data) {
     .attr("y", -margin.left + 20)
     .attr("x", -height / 2)
     .style("text-anchor", "middle")
-    .text("Cylinders");
-
-  // Add color legend
-  const legendWidth = 200;
-  const legendHeight = 20;
-  const legend = svg.append("g")
-    .attr("transform", `translate(${width - legendWidth - 10}, -30)`);
-
-  const defs = svg.append("defs");
-  const gradient = defs.append("linearGradient")
-    .attr("id", "color-gradient")
-    .attr("x1", "0%").attr("y1", "0%")
-    .attr("x2", "100%").attr("y2", "0%");
-
-  [0, 0.5, 1].forEach(ratio => {
-    gradient.append("stop")
-      .attr("offset", `${ratio * 100}%`)
-      .attr("stop-color", colorScale(ratio * d3.max(data, d => d.MPG)));
-  });
-
-  legend.append("rect")
-    .attr("width", legendWidth)
-    .attr("height", legendHeight)
-    .style("fill", "url(#color-gradient)");
-
-  legend.append("text")
-    .attr("x", legendWidth / 2)
-    .attr("y", -5)
-    .style("text-anchor", "middle")
-    .text("Average MPG");
-}
-
-// CSS for tooltip (add to your stylesheet)
-.tooltip {
-  font-family: sans-serif;
-  font-size: 12px;
-  pointer-events: none;
+    .text("Average Weight");
 }
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', loadData);
-  
    
