@@ -2,7 +2,7 @@
 function loadData() {
   d3.csv("https://raw.githubusercontent.com/hemanthpranav/IV-MAIN/main/a1-cars.csv")
     .then(function(rawData) {
-      // Clean and process data
+      // Process data without spread operator
       var cleanData = rawData.map(function(d) {
         return {
           Car: d.Car,
@@ -14,10 +14,10 @@ function loadData() {
           Origin: d.Origin
         };
       }).filter(function(d) {
-        return d.MPG !== null && d.Horsepower !== null;
+        return d.MPG !== null && d.Horsepower !== null && d.Weight !== null;
       });
 
-      console.log("Data loaded successfully", cleanData);
+      console.log("Data processed successfully");
       
       // Create visualizations
       createBarChart(cleanData);
@@ -27,22 +27,19 @@ function loadData() {
     .catch(function(error) {
       console.error("Error loading data:", error);
       document.getElementById("bar-chart").innerHTML = 
-        "<p style='color:red'>Error loading data. Check console for details.</p>";
+        '<p style="color:red">Error loading data. Check console.</p>';
     });
 }
 
 // Bar Chart: MPG by Manufacturer
 function createBarChart(data) {
-  // Clear previous content
   var container = d3.select("#bar-chart");
   container.selectAll("*").remove();
 
-  // Set dimensions
   var margin = {top: 40, right: 30, bottom: 70, left: 60};
   var width = 800 - margin.left - margin.right;
   var height = 500 - margin.top - margin.bottom;
 
-  // Create SVG
   var svg = container.append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
@@ -50,12 +47,19 @@ function createBarChart(data) {
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
   // Group data by Manufacturer
-  var manufacturers = Array.from(new Set(data.map(function(d) { return d.Manufacturer; })));
-  var avgMPG = manufacturers.map(function(m) {
-    var manufacturerData = data.filter(function(d) { return d.Manufacturer === m; });
+  var manufacturers = [];
+  data.forEach(function(d) {
+    if (manufacturers.indexOf(d.Manufacturer) === -1) {
+      manufacturers.push(d.Manufacturer);
+    }
+  });
+
+  // Calculate average MPG
+  var avgMPG = manufacturers.map(function(mfg) {
+    var mfgData = data.filter(function(d) { return d.Manufacturer === mfg; });
     return {
-      Manufacturer: m,
-      MPG: d3.mean(manufacturerData, function(d) { return d.MPG; })
+      Manufacturer: mfg,
+      MPG: d3.mean(mfgData, function(d) { return d.MPG; })
     };
   });
 
@@ -162,7 +166,7 @@ function createScatterPlot(data) {
     .text("MPG");
 }
 
-// Line Chart: Weight Over Years
+// Line Chart: Weight Evolution Over Years (using d3.rollups)
 function createLineChart(data) {
   var container = d3.select("#line-chart");
   container.selectAll("*").remove();
@@ -177,28 +181,31 @@ function createLineChart(data) {
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by year
-  var groupedData = d3.nest()
-    .key(function(d) { return d.Model_Year; })
-    .rollup(function(v) { return d3.mean(v, function(d) { return d.Weight; }); })
-    .entries(data);
+  // Group data by year using d3.rollups
+  var groupedData = d3.rollups(
+    data,
+    function(v) { return d3.mean(v, function(d) { return d.Weight; }); }, // Reducer
+    function(d) { return d.Model_Year; } // Group key
+  );
 
   // Sort by year
-  groupedData.sort(function(a, b) { return a.key - b.key; });
+  groupedData.sort(function(a, b) {
+    return a[0] - b[0];
+  });
 
   // Scales
   var x = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return +d.key; }))
+    .domain(d3.extent(groupedData, function(d) { return d[0]; }))
     .range([0, width]);
 
   var y = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d.value; }))
+    .domain(d3.extent(groupedData, function(d) { return d[1]; }))
     .range([height, 0]);
 
   // Line generator
   var line = d3.line()
-    .x(function(d) { return x(+d.key); })
-    .y(function(d) { return y(d.value); });
+    .x(function(d) { return x(d[0]); })
+    .y(function(d) { return y(d[1]); });
 
   // Add line
   svg.append("path")
@@ -233,5 +240,4 @@ function createLineChart(data) {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', loadData);
-  
     
