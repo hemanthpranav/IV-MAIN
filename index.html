@@ -48,10 +48,6 @@
       margin-bottom: 8px;
       font-size: 1em;
     }
-    #bar-chart svg text,
-    #heatmap svg text {
-      font-size: 12px;
-    }
     .tooltip {
       position: absolute;
       background: white;
@@ -62,9 +58,12 @@
       font-size: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .axis-label {
-      font-size: 12px;
-      font-weight: bold;
+    .heatmap-cell {
+      stroke: #fff;
+      stroke-width: 1px;
+    }
+    .heatmap-cell:hover {
+      stroke-width: 2px;
     }
   </style>
 </head>
@@ -120,18 +119,25 @@
 
   
   <!-- New Heatmap Visualization -->
-  <div class="chart-container" id="heatmap">
+  <div class="chart-container" id="heatmap-container">
     <h2>MPG Heatmap: Cylinders vs. Model Year</h2>
-    <div class="heatmap-controls" style="margin-bottom: 15px;">
-      <label>
-        <input type="radio" name="heatmap-mode" value="mpg" checked> MPG
-      </label>
-      <label style="margin-left: 15px;">
-        <input type="radio" name="heatmap-mode" value="horsepower"> Horsepower
-      </label>
-    </div>
+    <div id="heatmap"></div>
   </div>
 
   <script src="visualizations.js"></script>
+  <script>
+    // Load data and create visualizations
+    d3.csv("a1-cars.csv").then(function(data) {
+      // Convert numeric fields
+      data.forEach(d => {
+        d.MPG = +d.MPG;
+        d.Cylinders = +d.Cylinders;
+        d.Model_Year = +d.Model_Year;
+      });
+      
+      // Create heatmap
+      createHeatmap(data);
+    });
+  </script>
 </body>
 </html>
