@@ -1,150 +1,90 @@
-// JavaScript for Car Dataset Visualization 
+// Main data loader function
+function loadData() {
+  d3.csv("https://raw.githubusercontent.com/hemanthpranav/IV-MAIN/main/a1-cars.csv")
+    .then(function(rawData) {
+      // Clean and process data
+      var cleanData = rawData.map(function(d) {
+        return {
+          Car: d.Car,
+          Manufacturer: d.Manufacturer,
+          MPG: d.MPG === "NA" ? null : +d.MPG,
+          Horsepower: d.Horsepower === "NA" ? null : +d.Horsepower,
+          Weight: d.Weight === "NA" ? null : +d.Weight,
+          Model_Year: d.Model_Year === "NA" ? null : +d.Model_Year,
+          Origin: d.Origin
+        };
+      }).filter(function(d) {
+        return d.MPG !== null && d.Horsepower !== null;
+      });
 
-// Load the data
-async function loadData() {
-  try {
-    // Use raw GitHub URL or correct local path
-    const data = await d3.csv("https://raw.githubusercontent.com/hemanthpranav/IV-MAIN/main/a1-cars.csv").then(data => { ... });
-    
-    // Data preprocessing
-    data.forEach(d => {
-      d.MPG = d.MPG === "NA" ? null : +d.MPG;
-      d.Displacement = d.Displacement === "NA" ? null : +d.Displacement;
-      d.Weight = d.Weight === "NA" ? null : +d.Weight;
-      d.Model_Year = d.Model_Year === "NA" ? null : +d.Model_Year;
+      console.log("Data loaded successfully", cleanData);
+      
+      // Create visualizations
+      createBarChart(cleanData);
+      createScatterPlot(cleanData);
+      createLineChart(cleanData);
+    })
+    .catch(function(error) {
+      console.error("Error loading data:", error);
+      document.getElementById("bar-chart").innerHTML = 
+        "<p style='color:red'>Error loading data. Check console for details.</p>";
     });
-
-    // Filter out null values
-    const filteredData = data.filter(d => d.MPG !== null && d.Displacement !== null && d.Weight !== null && d.Model_Year !== null);
-    
-    createBarChart(filteredData);
-    createScatterPlot(filteredData);
-    createLineChart(filteredData);
-    
-  } catch (error) {
-    console.error("Error loading or processing data:", error);
-  }
 }
 
-// Bar Chart: MPG by Origin and Manufacturer
+// Bar Chart: MPG by Manufacturer
 function createBarChart(data) {
-  // Clear previous chart if exists
-  d3.select("#bar-chart").html("");
-  
-  // Set up dimensions
-  const margin = { top: 40, right: 30, bottom: 80, left: 60 };
-  const width = 800 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
+  // Clear previous content
+  var container = d3.select("#bar-chart");
+  container.selectAll("*").remove();
+
+  // Set dimensions
+  var margin = {top: 40, right: 30, bottom: 70, left: 60};
+  var width = 800 - margin.left - margin.right;
+  var height = 500 - margin.top - margin.bottom;
 
   // Create SVG
-  const svg = d3.select("#bar-chart")
-    .append("svg")
+  var svg = container.append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by Origin and Manufacturer
-  const groupedData = d3.rollups(
-    data,
-    v => d3.mean(v, d => d.MPG),
-    d => d.Origin,
-    d => d.Manufacturer
-  );
+  // Group data by Manufacturer
+  var manufacturers = Array.from(new Set(data.map(function(d) { return d.Manufacturer; })));
+  var avgMPG = manufacturers.map(function(m) {
+    var manufacturerData = data.filter(function(d) { return d.Manufacturer === m; });
+    return {
+      Manufacturer: m,
+      MPG: d3.mean(manufacturerData, function(d) { return d.MPG; })
+    };
+  });
 
-  // Set up scales
-  const x0 = d3.scaleBand()
-    .domain(groupedData.map(d => d[0]))
+  // X scale
+  var x = d3.scaleBand()
+    .domain(manufacturers)
     .range([0, width])
     .padding(0.2);
 
-  const manufacturers = [...new Set(data.map(d => d.Manufacturer))];
-  const x1 = d3.scaleBand()
-    .domain(manufacturers)
-    .range([0, x0.bandwidth()])
-    .padding(0.1);
-
-  const y = d3.scaleLinear()
-    .domain([0, d3.max(groupedData, d => d3.max(d[1], v => v[1]))])
+  // Y scale
+  var y = d3.scaleLinear()
+    .domain([0, d3.max(avgMPG, function(d) { return d.MPG; })])
     .nice()
     .range([height, 0]);
 
   // Add bars
-  svg.append("g")
-    .selectAll("g")
-    .data(groupedData)
-    .enter().append("g")
-    .attr("transform", d => `translate(${x0(d[0])},0)`)
-    .selectAll("rect")
-    .data(d => d[1])
+  svg.selectAll(".bar")
+    .data(avgMPG)
     .enter().append("rect")
-    .attr("x", d => x1(d[0]))
-    .attr("y", d => y(d[1]))
-    .attr("width", x1.bandwidth())
-    .attr("height", d => height - y(d[1]))
-    .attr("fill", (d, i) => d3.schemeCategory10[i % 10]);
+    .attr("class", "bar")
+    .attr("x", function(d) { return x(d.Manufacturer); })
+    .attr("y", function(d) { return y(d.MPG); })
+    .attr("width", x.bandwidth())
+    .attr("height", function(d) { return height - y(d.MPG); })
+    .attr("fill", "steelblue");
 
   // Add axes
   svg.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x0));
-
-  svg.append("g")
-    .call(d3.axisLeft(y));
-
-  // Add labels
-  svg.append("text")
-    .attr("x", width/2)
-    .attr("y", height + margin.bottom - 10)
-    .style("text-anchor", "middle")
-    .text("Origin");
-
-  svg.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", -margin.left + 20)
-    .attr("x", -height/2)
-    .style("text-anchor", "middle")
-    .text("Average MPG");
-}
-
-// Scatter Plot: Displacement vs MPG
-function createScatterPlot(data) {
-  // Clear previous chart if exists
-  d3.select("#scatter-displacement").html("");
-  
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
-  const width = 600 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
-
-  const svg = d3.select("#scatter-displacement")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // Scales
-  const x = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Displacement))
-    .range([0, width]);
-
-  const y = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.MPG))
-    .range([height, 0]);
-
-  // Add dots
-  svg.selectAll("circle")
-    .data(data)
-    .enter().append("circle")
-    .attr("cx", d => x(d.Displacement))
-    .attr("cy", d => y(d.MPG))
-    .attr("r", 5)
-    .attr("fill", "steelblue")
-    .attr("opacity", 0.7);
-
-  // Add axes
-  svg.append("g")
-    .attr("transform", `translate(0,${height})`)
+    .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x));
 
   svg.append("g")
@@ -152,61 +92,117 @@ function createScatterPlot(data) {
 
   // Add labels
   svg.append("text")
-    .attr("x", width/2)
+    .attr("x", width / 2)
     .attr("y", height + margin.bottom - 10)
     .style("text-anchor", "middle")
-    .text("Displacement");
+    .text("Manufacturer");
 
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -margin.left + 20)
-    .attr("x", -height/2)
+    .attr("x", -height / 2)
+    .style("text-anchor", "middle")
+    .text("Average MPG");
+}
+
+// Scatter Plot: Horsepower vs MPG
+function createScatterPlot(data) {
+  var container = d3.select("#scatter-plot");
+  container.selectAll("*").remove();
+
+  var margin = {top: 40, right: 30, bottom: 70, left: 60};
+  var width = 600 - margin.left - margin.right;
+  var height = 500 - margin.top - margin.bottom;
+
+  var svg = container.append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  // Scales
+  var x = d3.scaleLinear()
+    .domain(d3.extent(data, function(d) { return d.Horsepower; }))
+    .range([0, width]);
+
+  var y = d3.scaleLinear()
+    .domain(d3.extent(data, function(d) { return d.MPG; }))
+    .range([height, 0]);
+
+  // Add dots
+  svg.selectAll(".dot")
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "dot")
+    .attr("cx", function(d) { return x(d.Horsepower); })
+    .attr("cy", function(d) { return y(d.MPG); })
+    .attr("r", 5)
+    .attr("fill", "steelblue");
+
+  // Add axes
+  svg.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x));
+
+  svg.append("g")
+    .call(d3.axisLeft(y));
+
+  // Add labels
+  svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", height + margin.bottom - 10)
+    .style("text-anchor", "middle")
+    .text("Horsepower");
+
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -margin.left + 20)
+    .attr("x", -height / 2)
     .style("text-anchor", "middle")
     .text("MPG");
 }
 
-// Line Chart: Weight Evolution Over Model Years
+// Line Chart: Weight Over Years
 function createLineChart(data) {
-  // Clear previous chart if exists
-  d3.select("#line-chart").html("");
-  
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
-  const width = 800 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
+  var container = d3.select("#line-chart");
+  container.selectAll("*").remove();
 
-  const svg = d3.select("#line-chart")
-    .append("svg")
+  var margin = {top: 40, right: 30, bottom: 70, left: 60};
+  var width = 800 - margin.left - margin.right;
+  var height = 500 - margin.top - margin.bottom;
+
+  var svg = container.append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by year and calculate average weight
-  const groupedData = d3.rollup(
-    data,
-    v => d3.mean(v, d => d.Weight),
-    d => d.Model_Year
-  );
-  
-  const sortedData = Array.from(groupedData).sort((a, b) => a[0] - b[0]);
+  // Group data by year
+  var groupedData = d3.nest()
+    .key(function(d) { return d.Model_Year; })
+    .rollup(function(v) { return d3.mean(v, function(d) { return d.Weight; }); })
+    .entries(data);
+
+  // Sort by year
+  groupedData.sort(function(a, b) { return a.key - b.key; });
 
   // Scales
-  const x = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Model_Year))
+  var x = d3.scaleLinear()
+    .domain(d3.extent(groupedData, function(d) { return +d.key; }))
     .range([0, width]);
 
-  const y = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Weight))
+  var y = d3.scaleLinear()
+    .domain(d3.extent(groupedData, function(d) { return d.value; }))
     .range([height, 0]);
 
   // Line generator
-  const line = d3.line()
-    .x(d => x(d[0]))
-    .y(d => y(d[1]));
+  var line = d3.line()
+    .x(function(d) { return x(+d.key); })
+    .y(function(d) { return y(d.value); });
 
   // Add line
   svg.append("path")
-    .datum(sortedData)
+    .datum(groupedData)
     .attr("fill", "none")
     .attr("stroke", "steelblue")
     .attr("stroke-width", 2)
@@ -214,7 +210,7 @@ function createLineChart(data) {
 
   // Add axes
   svg.append("g")
-    .attr("transform", `translate(0,${height})`)
+    .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x));
 
   svg.append("g")
@@ -222,7 +218,7 @@ function createLineChart(data) {
 
   // Add labels
   svg.append("text")
-    .attr("x", width/2)
+    .attr("x", width / 2)
     .attr("y", height + margin.bottom - 10)
     .style("text-anchor", "middle")
     .text("Model Year");
@@ -230,14 +226,12 @@ function createLineChart(data) {
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -margin.left + 20)
-    .attr("x", -height/2)
+    .attr("x", -height / 2)
     .style("text-anchor", "middle")
     .text("Average Weight");
 }
 
-// Initialize the visualization
-document.addEventListener('DOMContentLoaded', function() {
-  loadData();
-});
-
-
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', loadData);
+  
+    
