@@ -48,8 +48,23 @@
       margin-bottom: 8px;
       font-size: 1em;
     }
-    #bar-chart svg text {
+    #bar-chart svg text,
+    #heatmap svg text {
       font-size: 12px;
+    }
+    .tooltip {
+      position: absolute;
+      background: white;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .axis-label {
+      font-size: 12px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -69,6 +84,9 @@
       <h3>Origin</h3>
       <select id="origin-filter">
         <option value="all">All Origins</option>
+        <option value="American">American</option>
+        <option value="European">European</option>
+        <option value="Japanese">Japanese</option>
       </select>
     </div>
     
@@ -99,8 +117,19 @@
     <h2>Horsepower vs MPG</h2>
   </div>
   
-  <div class="chart-container" id="line-chart">
-    <h2>Weight Trend Over Years</h2>
+
+  
+  <!-- New Heatmap Visualization -->
+  <div class="chart-container" id="heatmap">
+    <h2>MPG Heatmap: Cylinders vs. Model Year</h2>
+    <div class="heatmap-controls" style="margin-bottom: 15px;">
+      <label>
+        <input type="radio" name="heatmap-mode" value="mpg" checked> MPG
+      </label>
+      <label style="margin-left: 15px;">
+        <input type="radio" name="heatmap-mode" value="horsepower"> Horsepower
+      </label>
+    </div>
   </div>
 
   <script src="visualizations.js"></script>
