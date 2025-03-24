@@ -181,33 +181,62 @@ function createLineChart(data) {
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  // Group data by year using d3.rollups
-  var groupedData = d3.rollups(
-    data,
-    function(v) { return d3.mean(v, function(d) { return d.Weight; }); }, // Reducer
-    function(d) { return d.Model_Year; } // Group key
-  );
-
-  // Sort by year
-  groupedData.sort(function(a, b) {
-    return a[0] - b[0];
+  // 1. Filter out invalid years and weights
+  var validData = data.filter(function(d) {
+    return !isNaN(d.Model_Year) && !isNaN(d.Weight) && d.Weight !== null;
   });
 
-  // Scales
+  // 2. Group data by year with additional validation
+  var groupedData = d3.rollups(
+    validData,
+    function(v) { 
+      var weights = v.map(function(d) { return d.Weight; }).filter(function(w) { return !isNaN(w); });
+      return weights.length > 0 ? d3.mean(weights) : 0;
+    },
+    function(d) { return d.Model_Year; }
+  ).filter(function(d) {
+    return !isNaN(d[0]) && !isNaN(d[1]); // Filter out NaN groups
+  });
+
+  // 3. Sort by year and ensure numeric values
+  groupedData.sort(function(a, b) {
+    return a[0] - b[0];
+  }).map(function(d) {
+    return [Number(d[0]), Number(d[1])];
+  });
+
+  // 4. Verify we have valid data points
+  if (groupedData.length === 0) {
+    console.error("No valid data points for line chart");
+    svg.append("text")
+      .attr("x", width/2)
+      .attr("y", height/2)
+      .text("No valid data available");
+    return;
+  }
+
+  // 5. Set scales with fallback domains
   var x = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d[0]; }))
+    .domain([
+      d3.min(groupedData, function(d) { return d[0]; }) || 0,
+      d3.max(groupedData, function(d) { return d[0]; }) || 1
+    ])
     .range([0, width]);
 
   var y = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d[1]; }))
+    .domain([
+      Math.min(0, d3.min(groupedData, function(d) { return d[1]; }) || 0),
+      d3.max(groupedData, function(d) { return d[1]; }) || 1
+    ])
     .range([height, 0]);
 
-  // Line generator
+  // 6. Line generator with validation
   var line = d3.line()
+    .defined(function(d) { return !isNaN(d[0]) && !isNaN(d[1]); })
     .x(function(d) { return x(d[0]); })
     .y(function(d) { return y(d[1]); });
 
-  // Add line
+  // 7. Draw the line
   svg.append("path")
     .datum(groupedData)
     .attr("fill", "none")
@@ -215,7 +244,7 @@ function createLineChart(data) {
     .attr("stroke-width", 2)
     .attr("d", line);
 
-  // Add axes
+  // Rest of your axis code...
   svg.append("g")
     .attr("transform", "translate(0," + height + ")")
     .call(d3.axisBottom(x));
@@ -223,9 +252,8 @@ function createLineChart(data) {
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add labels
   svg.append("text")
-    .attr("x", width / 2)
+    .attr("x", width/2)
     .attr("y", height + margin.bottom - 10)
     .style("text-anchor", "middle")
     .text("Model Year");
@@ -233,11 +261,10 @@ function createLineChart(data) {
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", -margin.left + 20)
-    .attr("x", -height / 2)
+    .attr("x", -height/2)
     .style("text-anchor", "middle")
     .text("Average Weight");
 }
-
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', loadData);
     
