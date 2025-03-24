@@ -273,7 +273,7 @@ function createLineChart(data) {
   var groupedData = d3.rollups(
     data,
     function(v) { return d3.mean(v, function(d) { return d.Weight; }); },
-    function(d) { return d.Model_Year; }
+    function(d) { return d.Horsepower; }
   ).filter(function(d) {
     return !isNaN(d[0]) && !isNaN(d[1]);
   });
