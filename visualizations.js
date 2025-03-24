@@ -2,7 +2,7 @@
 
 // Load the data
 async function loadData() {
-    const data = await d3.csv("a1-cars.csv");
+    const data = await d3.csv("https://raw.githubusercontent.com/hemanthpranav/IV-MAIN/main/a1-cars.csv").then(data => { ... });
     data.forEach(d => {
         d.MPG = +d.MPG;
         d.Displacement = +d.Displacement;
