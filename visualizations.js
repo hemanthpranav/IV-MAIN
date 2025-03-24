@@ -249,128 +249,141 @@ function createScatterPlot(data) {
     .text("MPG");
 }
 
-function createTreemap(data) {
-  const container = d3.select("#treemap");
-  container.selectAll("*").remove();
-
-  if (data.length === 0) {
-    container.append("p").text("No data matching filters");
-    return;
-  }
+function createHeatmap(data) {
+  // Remove any existing heatmap
+  d3.select("#heatmap").selectAll("*").remove();
 
   // Set dimensions and margins
-  const width = 800;
-  const height = 500;
-  const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+  const margin = {top: 50, right: 30, bottom: 80, left: 60};
+  const width = 800 - margin.left - margin.right;
+  const height = 500 - margin.top - margin.bottom;
 
   // Create SVG
-  const svg = container.append("svg")
-    .attr("width", width)
-    .attr("height", height)
+  const svg = d3.select("#heatmap")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Process data: Hierarchy = Origin > Manufacturer > Cylinders
-  const root = d3.hierarchy({
-    name: "root",
-    children: d3.groups(data, d => d.Origin, d => d.Manufacturer, d => d.Cylinders)
-      .map(([origin, manufacturers]) => ({
-        name: origin,
-        children: manufacturers.map(([manufacturer, cylinders]) => ({
-          name: manufacturer,
-          children: cylinders.map(([cylinder, items]) => ({
-            name: `${cylinder}-cyl`,
-            value: d3.mean(items, d => d.MPG), // Size by average MPG
-            count: items.length,
-            items: items
-          }))
-        }))
-      }))
-    })
-    .sum(d => d.value || 0) // Required for treemap
-    .sort((a, b) => b.value - a.value);
+  // Extract unique years and cylinders
+  const years = Array.from(new Set(data.map(d => d.Model_Year))).sort(d3.ascending);
+  const cylinders = [4, 6, 8];
 
-  // Color scale by origin
-  const color = d3.scaleOrdinal()
-    .domain(["American", "European", "Japanese"])
-    .range(["#e41a1c", "#377eb8", "#4daf4a"]);
+  // Color scale
+  const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+    .domain([0, d3.max(data, d => d.MPG)]);
 
-  // Create treemap layout
-  const treemap = d3.treemap()
-    .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
-    .padding(1);
+  // Create scales
+  const x = d3.scaleBand()
+    .domain(years)
+    .range([0, width])
+    .padding(0.05);
 
-  treemap(root);
+  const y = d3.scaleBand()
+    .domain(cylinders)
+    .range([height, 0])
+    .padding(0.05);
 
-  // Create cells
-  const cell = svg.selectAll("g")
-    .data(root.leaves())
-    .join("g")
-    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+  // Group data by year and cylinders
+  const groupedData = d3.rollups(
+    data,
+    v => d3.mean(v, d => d.MPG),
+    d => d.Model_Year,
+    d => d.Cylinders
+  );
 
-  // Add rectangles
-  cell.append("rect")
-    .attr("width", d => d.x1 - d.x0)
-    .attr("height", d => d.y1 - d.y0)
-    .attr("fill", d => color(d.parent.parent.data.name))
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1)
+  // Create heatmap cells
+  svg.selectAll()
+    .data(groupedData)
+    .enter()
+    .selectAll()
+    .data(d => d[1].map(e => ({
+      year: d[0],
+      cylinders: e[0],
+      value: e[1],
+      count: e[1].length
+    })))
+    .enter()
+    .append("rect")
+    .attr("class", "heatmap-cell")
+    .attr("x", d => x(d.year))
+    .attr("y", d => y(d.cylinders))
+    .attr("width", x.bandwidth())
+    .attr("height", y.bandwidth())
+    .attr("fill", d => isNaN(d.value) ? "#eee" : colorScale(d.value))
     .on("mouseover", function(event, d) {
-      d3.select(this).attr("stroke-width", 2);
-      tooltip.style("visibility", "visible")
+      d3.select(this).attr("stroke", "#333");
+      
+      // Show tooltip
+      const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
         .html(`
-          <strong>${d.parent.data.name}</strong><br>
-          Cylinders: ${d.data.name}<br>
-          Avg MPG: ${d.data.value.toFixed(1)}<br>
-          Cars: ${d.data.count}
-        `);
-    })
-    .on("mousemove", event => {
-      tooltip.style("top", (event.pageY - 10) + "px")
-             .style("left", (event.pageX + 10) + "px");
+          Year: ${d.year}<br>
+          Cylinders: ${d.cylinders}<br>
+          Avg MPG: ${d.value ? d.value.toFixed(1) : 'N/A'}
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 15) + "px");
     })
     .on("mouseout", function() {
-      d3.select(this).attr("stroke-width", 1);
-      tooltip.style("visibility", "hidden");
+      d3.select(this).attr("stroke", "#fff");
+      d3.selectAll(".tooltip").remove();
     });
 
-  // Add text labels (only if space permits)
-  cell.filter(d => (d.x1 - d.x0) > 40 && (d.y1 - d.y0) > 20)
-    .append("text")
-    .attr("x", 5)
-    .attr("y", 15)
-    .text(d => `${d.parent.data.name.slice(0, 10)}: ${d.data.value.toFixed(1)}`)
-    .attr("font-size", "10px")
-    .attr("fill", "white");
+  // Add axes
+  svg.append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", "rotate(-45)")
+    .style("text-anchor", "end");
 
-  // Add legend
+  svg.append("g")
+    .call(d3.axisLeft(y));
+
+  // Add axis labels
+  svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", height + margin.bottom - 50)
+    .style("text-anchor", "middle")
+    .text("Model Year");
+
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -margin.left + 20)
+    .attr("x", -height / 2)
+    .style("text-anchor", "middle")
+    .text("Cylinders");
+
+  // Add color legend
+  const legendWidth = 200;
+  const legendHeight = 20;
   const legend = svg.append("g")
-    .attr("transform", `translate(10, 10)`);
+    .attr("transform", `translate(${width - legendWidth - 10}, -30)`);
 
-  ["American", "European", "Japanese"].forEach((origin, i) => {
-    legend.append("rect")
-      .attr("x", 0)
-      .attr("y", i * 20)
-      .attr("width", 15)
-      .attr("height", 15)
-      .attr("fill", color(origin));
+  const defs = svg.append("defs");
+  const gradient = defs.append("linearGradient")
+    .attr("id", "color-gradient")
+    .attr("x1", "0%").attr("y1", "0%")
+    .attr("x2", "100%").attr("y2", "0%");
 
-    legend.append("text")
-      .attr("x", 20)
-      .attr("y", i * 20 + 12)
-      .text(origin)
-      .attr("font-size", "12px");
+  [0, 0.5, 1].forEach(ratio => {
+    gradient.append("stop")
+      .attr("offset", `${ratio * 100}%`)
+      .attr("stop-color", colorScale(ratio * d3.max(data, d => d.MPG)));
   });
 
-  // Tooltip
-  const tooltip = d3.select("body").append("div")
-    .attr("class", "tooltip")
-    .style("position", "absolute")
-    .style("visibility", "hidden")
-    .style("background", "white")
-    .style("padding", "5px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "3px");
+  legend.append("rect")
+    .attr("width", legendWidth)
+    .attr("height", legendHeight)
+    .style("fill", "url(#color-gradient)");
+
+  legend.append("text")
+    .attr("x", legendWidth / 2)
+    .attr("y", -5)
+    .style("text-anchor", "middle")
+    .text("Average MPG");
 }
 
 // CSS for tooltip (add to your stylesheet)
