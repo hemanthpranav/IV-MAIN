@@ -14,7 +14,6 @@ function loadData() {
           MPG: d.MPG === "NA" ? null : +d.MPG,
           Horsepower: d.Horsepower === "NA" ? null : +d.Horsepower,
           Weight: d.Weight === "NA" ? null : +d.Weight,
-          Model_Year: d.Model_Year === "NA" ? null : +d.Model_Year,
           Origin: d.Origin,
           Cylinders: d.Cylinders === "NA" ? null : +d.Cylinders,
           Acceleration: d.Acceleration === "NA" ? null : +d.Acceleration,
@@ -47,6 +46,7 @@ function initFilters() {
   }))).sort();
   
   var manufacturerSelect = d3.select("#manufacturer-filter");
+  manufacturerSelect.selectAll("option").remove();
   manufacturerSelect.append("option")
     .attr("value", "all")
     .text("All Manufacturers");
@@ -63,6 +63,7 @@ function initFilters() {
   }))).sort();
   
   var originSelect = d3.select("#origin-filter");
+  originSelect.selectAll("option").remove();
   originSelect.append("option")
     .attr("value", "all")
     .text("All Origins");
@@ -73,28 +74,13 @@ function initFilters() {
       .text(origin);
   });
 
-  // Year filter
-  var years = Array.from(new Set(rawData.map(function(d) { 
-    return d.Model_Year; 
-  }))).sort(function(a, b) { return a - b; });
-  
-  var yearSelect = d3.select("#year-filter");
-  yearSelect.append("option")
-    .attr("value", "all")
-    .text("All Years");
-    
-  years.forEach(function(year) {
-    yearSelect.append("option")
-      .attr("value", year)
-      .text(year);
-  });
-
   // Cylinders filter
   var cylinders = Array.from(new Set(rawData.map(function(d) { 
     return d.Cylinders; 
   }))).sort(function(a, b) { return a - b; });
   
   var cylindersSelect = d3.select("#cylinders-filter");
+  cylindersSelect.selectAll("option").remove();
   cylindersSelect.append("option")
     .attr("value", "all")
     .text("All Cylinders");
@@ -113,13 +99,11 @@ function initFilters() {
 function applyFilters() {
   var manufacturer = d3.select("#manufacturer-filter").property("value");
   var origin = d3.select("#origin-filter").property("value");
-  var year = d3.select("#year-filter").property("value");
   var cylinders = d3.select("#cylinders-filter").property("value");
 
   filteredData = rawData.filter(function(d) {
     return (manufacturer === "all" || d.Manufacturer === manufacturer) &&
            (origin === "all" || d.Origin === origin) &&
-           (year === "all" || d.Model_Year == year) &&
            (cylinders === "all" || d.Cylinders == cylinders);
   });
 
