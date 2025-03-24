@@ -249,9 +249,8 @@ function createScatterPlot(data) {
     .text("MPG");
 }
 
-// Line Chart: Weight vs Year
-function createLineChart(data) {
-  var container = d3.select("#line-chart");
+function createTreemap(data) {
+  const container = d3.select("#treemap");
   container.selectAll("*").remove();
 
   if (data.length === 0) {
@@ -259,73 +258,126 @@ function createLineChart(data) {
     return;
   }
 
-  var margin = {top: 40, right: 30, bottom: 70, left: 60};
-  var width = 800 - margin.left - margin.right;
-  var height = 500 - margin.top - margin.bottom;
+  // Set dimensions and margins
+  const width = 800;
+  const height = 500;
+  const margin = { top: 10, right: 10, bottom: 10, left: 10 };
 
-  var svg = container.append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
+  // Create SVG
+  const svg = container.append("svg")
+    .attr("width", width)
+    .attr("height", height)
     .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Group data by year and calculate average MPG (instead of Weight)
-  var groupedData = d3.rollups(
-    data,
-    function(v) { return d3.mean(v, function(d) { return d.MPG; }); }, // Changed to MPG
-    function(d) { return d.Model_Year; }
-  ).filter(function(d) {
-    return !isNaN(d[0]) && !isNaN(d[1]);
+  // Process data: Hierarchy = Origin > Manufacturer > Cylinders
+  const root = d3.hierarchy({
+    name: "root",
+    children: d3.groups(data, d => d.Origin, d => d.Manufacturer, d => d.Cylinders)
+      .map(([origin, manufacturers]) => ({
+        name: origin,
+        children: manufacturers.map(([manufacturer, cylinders]) => ({
+          name: manufacturer,
+          children: cylinders.map(([cylinder, items]) => ({
+            name: `${cylinder}-cyl`,
+            value: d3.mean(items, d => d.MPG), // Size by average MPG
+            count: items.length,
+            items: items
+          }))
+        }))
+      }))
+    })
+    .sum(d => d.value || 0) // Required for treemap
+    .sort((a, b) => b.value - a.value);
+
+  // Color scale by origin
+  const color = d3.scaleOrdinal()
+    .domain(["American", "European", "Japanese"])
+    .range(["#e41a1c", "#377eb8", "#4daf4a"]);
+
+  // Create treemap layout
+  const treemap = d3.treemap()
+    .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
+    .padding(1);
+
+  treemap(root);
+
+  // Create cells
+  const cell = svg.selectAll("g")
+    .data(root.leaves())
+    .join("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  // Add rectangles
+  cell.append("rect")
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill", d => color(d.parent.parent.data.name))
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1)
+    .on("mouseover", function(event, d) {
+      d3.select(this).attr("stroke-width", 2);
+      tooltip.style("visibility", "visible")
+        .html(`
+          <strong>${d.parent.data.name}</strong><br>
+          Cylinders: ${d.data.name}<br>
+          Avg MPG: ${d.data.value.toFixed(1)}<br>
+          Cars: ${d.data.count}
+        `);
+    })
+    .on("mousemove", event => {
+      tooltip.style("top", (event.pageY - 10) + "px")
+             .style("left", (event.pageX + 10) + "px");
+    })
+    .on("mouseout", function() {
+      d3.select(this).attr("stroke-width", 1);
+      tooltip.style("visibility", "hidden");
+    });
+
+  // Add text labels (only if space permits)
+  cell.filter(d => (d.x1 - d.x0) > 40 && (d.y1 - d.y0) > 20)
+    .append("text")
+    .attr("x", 5)
+    .attr("y", 15)
+    .text(d => `${d.parent.data.name.slice(0, 10)}: ${d.data.value.toFixed(1)}`)
+    .attr("font-size", "10px")
+    .attr("fill", "white");
+
+  // Add legend
+  const legend = svg.append("g")
+    .attr("transform", `translate(10, 10)`);
+
+  ["American", "European", "Japanese"].forEach((origin, i) => {
+    legend.append("rect")
+      .attr("x", 0)
+      .attr("y", i * 20)
+      .attr("width", 15)
+      .attr("height", 15)
+      .attr("fill", color(origin));
+
+    legend.append("text")
+      .attr("x", 20)
+      .attr("y", i * 20 + 12)
+      .text(origin)
+      .attr("font-size", "12px");
   });
 
-  // Sort by year
-  groupedData.sort(function(a, b) {
-    return a[0] - b[0];
-  });
+  // Tooltip
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("visibility", "hidden")
+    .style("background", "white")
+    .style("padding", "5px")
+    .style("border", "1px solid #ccc")
+    .style("border-radius", "3px");
+}
 
-  // Scales
-  var x = d3.scaleLinear()
-    .domain(d3.extent(groupedData, function(d) { return d[0]; }))
-    .range([0, width]);
-
-  var y = d3.scaleLinear()
-    .domain([0, d3.max(groupedData, function(d) { return d[1]; })]) // Start Y-axis at 0 for MPG
-    .range([height, 0]);
-
-  // Line generator
-  var line = d3.line()
-    .x(function(d) { return x(d[0]); })
-    .y(function(d) { return y(d[1]); });
-
-  // Add line
-  svg.append("path")
-    .datum(groupedData)
-    .attr("fill", "none")
-    .attr("stroke", "steelblue")
-    .attr("stroke-width", 2)
-    .attr("d", line);
-
-  // Update Y-axis label to "Average MPG"
-  svg.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", -margin.left + 20)
-    .attr("x", -height / 2)
-    .style("text-anchor", "middle")
-    .text("Average MPG"); // Changed from "Average Weight"
-
-  // Rest of the code remains the same...
-  svg.append("g")
-    .attr("transform", "translate(0," + height + ")")
-    .call(d3.axisBottom(x));
-
-  svg.append("g")
-    .call(d3.axisLeft(y));
-
-  svg.append("text")
-    .attr("x", width / 2)
-    .attr("y", height + margin.bottom - 10)
-    .style("text-anchor", "middle")
-    .text("Model Year");
+// CSS for tooltip (add to your stylesheet)
+.tooltip {
+  font-family: sans-serif;
+  font-size: 12px;
+  pointer-events: none;
 }
 
 // Initialize when page loads
