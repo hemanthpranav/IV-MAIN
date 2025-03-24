@@ -1,22 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Data Visualization with Cars Dataset</title>
-    <script src="https://d3js.org/d3.v6.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="style.css">
+  <title>Car Data Visualization</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Data Visualization with Cars Dataset</h1>
-        <div class="chart-section">
-            <div class="chart" id="bubbleChart"></div>
-            <div class="chart" id="scatterPlotMPG"></div>
-        </div>
-        <div class="chart-section">
-            <div class="chart" id="scatterPlotWeight"></div>
-            <div class="chart" id="barChart"></div>
-        </div>
-    </div>
-    <script src="visualizations.js"></script>
+  <div id="filters">
+    <label for="cylinders">Cylinders:</label>
+    <select id="cylinders">
+      <option value="all">All</option>
+      <option value="4">4</option>
+      <option value="6">6</option>
+      <option value="8">8</option>
+    </select>
+  </div>
+
+  <div id="charts">
+    <div id="scatter-plot"></div>
+    <div id="bar-chart"></div>
+  </div>
+
+  <script src="visualizations.js"></script>
 </body>
 </html>
