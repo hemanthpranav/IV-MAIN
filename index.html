@@ -2,37 +2,107 @@
 <html>
 <head>
   <title>Car Data Visualization</title>
-  <!-- Load D3.js first -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    .chart {
+    body {
+      font-family: Arial, sans-serif;
       margin: 20px;
-      padding: 20px;
+    }
+    .filter-panel {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      min-width: 200px;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .chart-container {
+      margin-bottom: 30px;
+      padding: 15px;
       border: 1px solid #ddd;
       border-radius: 5px;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    h1, h2 {
-      font-family: Arial, sans-serif;
+    h1, h2, h3 {
+      color: #333;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.3em;
+    }
+    h3 {
+      margin-bottom: 8px;
+      font-size: 1em;
+    }
+    #bar-chart svg text {
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
-  <h1>Car Dataset Analysis</h1>
+  <h1>Car Data Explorer</h1>
   
-  <!-- Chart containers -->
-  <div class="chart" id="bar-chart">
-    <h2>MPG by Manufacturer</h2>
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-group">
+      <h3>Manufacturer</h3>
+      <select id="manufacturer-filter">
+        <option value="all">All Manufacturers</option>
+      </select>
+    </div>
+    
+    <div class="filter-group">
+      <h3>Origin</h3>
+      <select id="origin-filter">
+        <option value="all">All Origins</option>
+      </select>
+    </div>
+    
+    <div class="filter-group">
+      <h3>Year</h3>
+      <select id="year-filter">
+        <option value="all">All Years</option>
+      </select>
+    </div>
+    
+    <div class="filter-group">
+      <h3>Cylinders</h3>
+      <select id="cylinders-filter">
+        <option value="all">All</option>
+        <option value="4">4</option>
+        <option value="6">6</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Visualizations -->
+  <div class="chart-container" id="bar-chart">
+    <h2>Average MPG by Manufacturer</h2>
   </div>
   
-  <div class="chart" id="scatter-plot">
+  <div class="chart-container" id="scatter-plot">
     <h2>Horsepower vs MPG</h2>
   </div>
   
-  <div class="chart" id="line-chart">
-    <h2>Weight Over Years</h2>
+  <div class="chart-container" id="line-chart">
+    <h2>Weight Trend Over Years</h2>
   </div>
 
-  <!-- Load your JavaScript LAST -->
   <script src="visualizations.js"></script>
 </body>
 </html>
